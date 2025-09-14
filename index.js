@@ -1,11 +1,13 @@
 import express from "express";
 import jwt from "jsonwebtoken";
-import bcypt from "bcrypt";
+import bcrypt from "bcrypt";
 import psql from "pg";
+import cors from "cors";
 
 const { Pool } = psql;
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 const SEKRET_KEYS = "learnJwt";
 
@@ -32,7 +34,7 @@ app.post("/regis", async (req, res) => {
     const { user_name, password } = req.body;
 
     // Validasi input
-    if (!user_name && !password) {
+    if (!user_name || !password) {
       return res
         .status(400)
         .json({ message: "Username and Password REQUIRED!!" });
@@ -45,7 +47,7 @@ app.post("/regis", async (req, res) => {
     }
 
     // hash password
-    const hashPassword = await bcypt.hash(password, 10);
+    const hashPassword = await bcrypt.hash(password, 10);
 
     // simpan ke database postgresql
     const query =
@@ -72,7 +74,7 @@ app.post("/login", async (req, res) => {
     const { user_name, password } = req.body;
 
     // Validasi input
-    if (!user_name && !password) {
+    if (!user_name || !password) {
       return res
         .status(400)
         .json({ message: "Username & Password REQUIRED!!!!" });
@@ -82,14 +84,14 @@ app.post("/login", async (req, res) => {
     const query = "SELECT * FROM userss WHERE user_name = $1";
     const result = await pool.query(query, [user_name]);
 
-    if (result.rows.length < 0) {
+    if (result.rows.length === 0) {
       return res.status(400).json({ massage: "NOT FOUND !!!" });
     }
 
     const user = result.rows[0];
 
     // Cek Password dengan bcrypt Compare
-    const isMatch = await bcypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Password Salah" });
     }
@@ -105,7 +107,7 @@ app.post("/login", async (req, res) => {
       message: "Login Sukses",
       token,
     });
-  } catch {
+  } catch (err){
     console.error("LOGIN ERROR", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
